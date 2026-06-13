@@ -1,0 +1,16 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: ros_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ros
+      POSTGRES_PASSWORD: ros_secret
+      POSTGRES_DB: ros_dev
+    ports:
+      - "5432:5432"
+    volumes:
+      - ros_pgdata:/var/lib/postgresql/data
+
+volumes:
+  ros_pgdata:

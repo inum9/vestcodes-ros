@@ -1,0 +1,108 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Restaurant {
+  id                  Int        @id @default(autoincrement())
+  name                String
+  gstRate             Float      @default(0.05)
+  currency            String     @default("INR")
+  emailVerification   Boolean    @default(false)
+  phoneVerification   Boolean    @default(false)
+  createdAt           DateTime   @default(now())
+
+  tables    Table[]
+  menuItems MenuItem[]
+  orders    Order[]
+  users     User[]
+}
+
+model Table {
+  id           Int        @id @default(autoincrement())
+  number       Int
+  zone         String?
+  restaurantId Int
+  restaurant   Restaurant @relation(fields: [restaurantId], references: [id])
+  orders       Order[]
+
+  @@unique([restaurantId, number])
+}
+
+model MenuItem {
+  id           Int         @id @default(autoincrement())
+  name         String
+  description  String?
+  category     String
+  price        Float
+  imageUrl     String?
+  available    Boolean     @default(true)
+  restaurantId Int
+  restaurant   Restaurant  @relation(fields: [restaurantId], references: [id])
+  orderItems   OrderItem[]
+}
+
+// status flow: pending → approved → preparing → ready → served | rejected
+model Order {
+  id           Int         @id @default(autoincrement())
+  restaurantId Int
+  tableId      Int
+  status       String      @default("pending")
+  total        Float       @default(0)
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  restaurant   Restaurant  @relation(fields: [restaurantId], references: [id])
+  table        Table       @relation(fields: [tableId], references: [id])
+  orderItems   OrderItem[]
+  invoice      Invoice?
+  auditLog     AuditLog[]
+}
+
+model OrderItem {
+  id         Int      @id @default(autoincrement())
+  orderId    Int
+  menuItemId Int
+  quantity   Int
+  unitPrice  Float
+
+  order    Order    @relation(fields: [orderId], references: [id])
+  menuItem MenuItem @relation(fields: [menuItemId], references: [id])
+}
+
+model User {
+  id           Int        @id @default(autoincrement())
+  email        String     @unique
+  passwordHash String
+  role         String     // manager | kitchen | floor
+  restaurantId Int
+  restaurant   Restaurant @relation(fields: [restaurantId], references: [id])
+  auditLog     AuditLog[]
+}
+
+model Invoice {
+  id        Int      @id @default(autoincrement())
+  orderId   Int      @unique
+  subtotal  Float
+  gstAmount Float
+  total     Float
+  createdAt DateTime @default(now())
+
+  order Order @relation(fields: [orderId], references: [id])
+}
+
+model AuditLog {
+  id         Int      @id @default(autoincrement())
+  orderId    Int
+  userId     Int?
+  fromStatus String
+  toStatus   String
+  timestamp  DateTime @default(now())
+
+  order Order @relation(fields: [orderId], references: [id])
+  user  User? @relation(fields: [userId], references: [id])
+}

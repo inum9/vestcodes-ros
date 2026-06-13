@@ -9,6 +9,6 @@
     "concurrently": "^9.1.0"
   },
   "pnpm": {
-    "onlyBuiltDependencies": ["@nestjs/core", "esbuild"]
+    "onlyBuiltDependencies": ["@nestjs/core", "esbuild", "@prisma/client", "@prisma/engines", "prisma"]
   }
 }
