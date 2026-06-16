@@ -32,6 +32,13 @@ export class AuthController {
   ) {
     if (!token) throw new UnauthorizedException('Missing table token');
     const table = await this.authService.verifyTableToken(tableId, token);
-    return { valid: true, tableId: table.id, tableNumber: table.number, restaurantId: table.restaurantId };
+    return {
+      valid: true,
+      tableId: table.id,
+      tableNumber: table.number,
+      restaurantId: table.restaurantId,
+      restaurantName: table.restaurant.name,
+      currency: table.restaurant.currency,
+    };
   }
 }

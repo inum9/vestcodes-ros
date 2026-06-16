@@ -27,17 +27,26 @@ export class OrdersController {
     return this.ordersService.create(dto);
   }
 
-  /** Floor + Manager — list orders, filterable by ?status= */
+  /** Public — check if table has a pending/approved order */
+  @Get('active/:tableId')
+  getActive(
+    @Param('tableId', ParseIntPipe) tableId: number,
+    @Query('t') token: string,
+  ) {
+    return this.ordersService.getActiveForTable(tableId, token);
+  }
+
+  /** Floor, manager, and kitchen — list orders, filterable by ?status= */
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('floor', 'manager')
+  @Roles('floor', 'manager', 'kitchen')
   @Get()
   findAll(@Request() req, @Query() query: QueryOrdersDto) {
     return this.ordersService.findAll(req.user.restaurantId, query);
   }
 
-  /** Floor + Manager — single order detail */
+  /** Floor, manager, and kitchen — single order detail */
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('floor', 'manager')
+  @Roles('floor', 'manager', 'kitchen')
   @Get(':id')
   findOne(@Request() req, @Param('id', ParseIntPipe) id: number) {
     return this.ordersService.findOne(id, req.user.restaurantId);

@@ -37,6 +37,28 @@ export class OrdersService {
     private readonly gateway?: OrdersGateway,
   ) {}
 
+  async getActiveForTable(tableId: number, tableToken: string) {
+    const table = await this.prisma.table.findUnique({ where: { id: tableId } });
+    if (!table) throw new NotFoundException('Table not found');
+
+    const valid = this.tableToken.verify(tableToken, table.id, table.restaurantId);
+    if (!valid) throw new UnauthorizedException('Invalid table token');
+
+    const order = await this.prisma.order.findFirst({
+      where: {
+        tableId: table.id,
+        status: { in: ['pending', 'approved'] },
+      },
+      orderBy: { createdAt: 'desc' },
+      select: { id: true, status: true, total: true },
+    });
+
+    return {
+      hasActiveOrder: !!order,
+      order: order ?? null,
+    };
+  }
+
   async create(dto: CreateOrderDto) {
     const table = await this.prisma.table.findUnique({ where: { id: dto.tableId } });
     if (!table) throw new NotFoundException('Table not found');

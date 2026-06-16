@@ -6,11 +6,10 @@ import {
   Body,
   Param,
   Request,
-  Res,
   UseGuards,
   ParseIntPipe,
+  StreamableFile,
 } from '@nestjs/common';
-import { Response } from 'express';
 import { TablesService } from './table.service';
 import { CreateTableDto } from './dto/create-table.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -43,14 +42,14 @@ export class TablesController {
   async getQr(
     @Request() req,
     @Param('id', ParseIntPipe) id: number,
-    @Res({ passthrough: true }) res: Response,
-  ) {
+  ): Promise<StreamableFile> {
     const { buffer, tableNumber } = await this.tablesService.generateQrBuffer(
       req.user.restaurantId,
       id,
     );
-    res.setHeader('Content-Type', 'image/png');
-    res.setHeader('Content-Disposition', `attachment; filename="table-${tableNumber}.png"`);
-    return buffer;
+    return new StreamableFile(buffer, {
+      type: 'image/png',
+      disposition: `attachment; filename="table-${tableNumber}.png"`,
+    });
   }
 }

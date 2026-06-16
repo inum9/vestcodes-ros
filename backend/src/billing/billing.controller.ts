@@ -3,12 +3,11 @@ import {
   Get,
   Param,
   Query,
-  Res,
   UseGuards,
   ParseIntPipe,
   Request,
+  StreamableFile,
 } from '@nestjs/common';
-import { Response } from 'express';
 import { BillingService } from './billing.service';
 import { QueryBillingDto } from './dto/query-billing.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -28,17 +27,24 @@ export class BillingController {
 
   /** Declared BEFORE :id — prevents 'export' being parsed as an integer param */
   @Get('export')
-  async exportXlsx(
-    @Request() req,
-    @Res({ passthrough: true }) res: Response,
-  ) {
+  async exportXlsx(@Request() req): Promise<StreamableFile> {
     const buffer = await this.billingService.exportXlsx(req.user.restaurantId);
-    res.setHeader(
-      'Content-Type',
-      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-    );
-    res.setHeader('Content-Disposition', 'attachment; filename="invoices.xlsx"');
-    return buffer;
+    return new StreamableFile(buffer, {
+      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      disposition: 'attachment; filename="invoices.xlsx"',
+    });
+  }
+
+  @Get(':id/pdf')
+  async exportPdf(
+    @Request() req,
+    @Param('id', ParseIntPipe) id: number,
+  ): Promise<StreamableFile> {
+    const buffer = await this.billingService.exportPdf(id, req.user.restaurantId);
+    return new StreamableFile(buffer, {
+      type: 'application/pdf',
+      disposition: `attachment; filename="invoice-${id}.pdf"`,
+    });
   }
 
   @Get(':id')
