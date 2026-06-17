@@ -7,6 +7,7 @@ export type KitchenOrderItem = {
   menuItem: {
     id: number;
     name: string;
+    category: string;
   };
 };
 

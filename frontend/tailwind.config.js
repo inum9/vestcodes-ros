@@ -91,10 +91,36 @@ export default {
           from: { height: 'var(--radix-accordion-content-height)' },
           to: { height: '0' },
         },
+        'success-pop': {
+          '0%': { transform: 'scale(0.5)', opacity: '0' },
+          '65%': { transform: 'scale(1.06)', opacity: '1' },
+          '100%': { transform: 'scale(1)', opacity: '1' },
+        },
+        'success-ring': {
+          '0%': { transform: 'scale(0.85)', opacity: '0.7' },
+          '100%': { transform: 'scale(1.55)', opacity: '0' },
+        },
+        'confetti-fall': {
+          '0%': { transform: 'translateY(-5vh) rotate(0deg)', opacity: '1' },
+          '100%': { transform: 'translateY(105vh) rotate(540deg)', opacity: '0' },
+        },
+        'fade-up': {
+          '0%': { transform: 'translateY(12px)', opacity: '0' },
+          '100%': { transform: 'translateY(0)', opacity: '1' },
+        },
+        'kds-pulse': {
+          '0%, 100%': { boxShadow: '0 0 0 0 rgba(220, 38, 38, 0.15)' },
+          '50%': { boxShadow: '0 0 0 6px rgba(220, 38, 38, 0)' },
+        },
       },
       animation: {
         'accordion-down': 'accordion-down 0.2s ease-out',
         'accordion-up': 'accordion-up 0.2s ease-out',
+        'success-pop': 'success-pop 0.55s cubic-bezier(0.34, 1.56, 0.64, 1) forwards',
+        'success-ring': 'success-ring 1.2s ease-out infinite',
+        'confetti-fall': 'confetti-fall 2.8s ease-in forwards',
+        'fade-up': 'fade-up 0.5s ease-out forwards',
+        'kds-pulse': 'kds-pulse 2s ease-in-out infinite',
       },
     },
   },

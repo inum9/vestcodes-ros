@@ -25,20 +25,20 @@ async function main() {
 
   // Menu items
   const items = [
-    { name: 'Masala Dosa',      category: 'Breakfast', price: 120, description: 'Crispy dosa with spiced potato filling' },
-    { name: 'Idli Sambar',      category: 'Breakfast', price: 80,  description: 'Steamed rice cakes with lentil soup' },
-    { name: 'Paneer Butter Masala', category: 'Main Course', price: 280, description: 'Cottage cheese in rich tomato gravy' },
-    { name: 'Dal Tadka',        category: 'Main Course', price: 180, description: 'Yellow lentils tempered with spices' },
-    { name: 'Butter Naan',      category: 'Breads',    price: 60,  description: 'Soft leavened bread with butter' },
-    { name: 'Mango Lassi',      category: 'Drinks',    price: 90,  description: 'Chilled mango yoghurt drink' },
-    { name: 'Gulab Jamun',      category: 'Desserts',  price: 80,  description: 'Soft milk-solid dumplings in sugar syrup' },
-    { name: 'Veg Biryani',      category: 'Main Course', price: 220, description: 'Fragrant basmati rice with vegetables' },
+    { name: 'Masala Dosa',      category: 'Breakfast', price: 120, description: 'Crispy dosa with spiced potato filling', imageUrl: '/menu/masala-dosa.jpg' },
+    { name: 'Idli Sambar',      category: 'Breakfast', price: 80,  description: 'Steamed rice cakes with lentil soup', imageUrl: '/menu/idli-sambar.jpg' },
+    { name: 'Paneer Butter Masala', category: 'Main Course', price: 280, description: 'Cottage cheese in rich tomato gravy', imageUrl: '/menu/paneer-butter-masala.jpg' },
+    { name: 'Dal Tadka',        category: 'Main Course', price: 180, description: 'Yellow lentils tempered with spices', imageUrl: '/menu/dal-tadka.jpg' },
+    { name: 'Butter Naan',      category: 'Breads',    price: 60,  description: 'Soft leavened bread with butter', imageUrl: '/menu/butter-naan.jpg' },
+    { name: 'Mango Lassi',      category: 'Drinks',    price: 90,  description: 'Chilled mango yoghurt drink', imageUrl: '/menu/mango-lassi.jpg' },
+    { name: 'Gulab Jamun',      category: 'Desserts',  price: 80,  description: 'Soft milk-solid dumplings in sugar syrup', imageUrl: '/menu/gulab-jamun.jpg' },
+    { name: 'Veg Biryani',      category: 'Main Course', price: 220, description: 'Fragrant basmati rice with vegetables', imageUrl: '/menu/veg-biryani.jpg' },
   ];
 
   for (const item of items) {
     await prisma.menuItem.upsert({
       where: { id: items.indexOf(item) + 1 },
-      update: {},
+      update: { imageUrl: item.imageUrl },
       create: { restaurantId: restaurant.id, ...item },
     });
   }

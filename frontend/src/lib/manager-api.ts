@@ -87,6 +87,17 @@ export function fetchTables() {
   return api<RestaurantTable[]>('/tables');
 }
 
+export function createTable(data: { number: number; zone?: string }) {
+  return api<RestaurantTable>('/tables', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+}
+
+export function deleteTable(id: number) {
+  return api<{ success: boolean }>(`/tables/${id}`, { method: 'DELETE' });
+}
+
 export async function fetchTableQrBlob(tableId: number): Promise<Blob> {
   const token = getToken();
   const res = await fetch(`${BASE}/tables/${tableId}/qr`, {
@@ -198,6 +209,56 @@ export function formatDateTime(iso: string) {
 
 export type TimeBucket = 'Morning' | 'Afternoon' | 'Evening' | 'Night';
 
+export type RevenueTrendPoint = {
+  label: string;
+  value: number;
+  sublabel?: string;
+};
+
+export type DashboardStats = {
+  revenueToday: number;
+  ordersToday: number;
+  aovToday: number;
+  revenueYesterday: number;
+  ordersYesterday: number;
+  aovYesterday: number;
+  buckets: Record<TimeBucket, number>;
+  topItems: { name: string; quantity: number }[];
+  dailyTrend: RevenueTrendPoint[];
+  weeklyTrend: RevenueTrendPoint[];
+  insights: string[];
+  peakBucket: TimeBucket | null;
+};
+
+const BUCKET_ORDER: TimeBucket[] = ['Morning', 'Afternoon', 'Evening', 'Night'];
+
+function dayKey(d: Date): string {
+  return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+}
+
+function isSameDay(iso: string, ref: Date): boolean {
+  return dayKey(new Date(iso)) === dayKey(ref);
+}
+
+function isYesterday(iso: string): boolean {
+  const y = new Date();
+  y.setDate(y.getDate() - 1);
+  return isSameDay(iso, y);
+}
+
+function startOfWeek(d: Date): Date {
+  const copy = new Date(d);
+  const day = copy.getDay();
+  const diff = day === 0 ? -6 : 1 - day;
+  copy.setDate(copy.getDate() + diff);
+  copy.setHours(0, 0, 0, 0);
+  return copy;
+}
+
+function weekKey(d: Date): string {
+  return dayKey(startOfWeek(d));
+}
+
 export function timeBucket(iso: string): TimeBucket {
   const hour = new Date(iso).getHours();
   if (hour >= 6 && hour < 12) return 'Morning';
@@ -216,10 +277,17 @@ export function isToday(iso: string) {
   );
 }
 
-export function computeDashboardFromInvoices(invoices: Invoice[]) {
+export function computeDashboardFromInvoices(invoices: Invoice[]): DashboardStats {
+  const now = new Date();
   const todayInvoices = invoices.filter((inv) => isToday(inv.createdAt));
+  const yesterdayInvoices = invoices.filter((inv) => isYesterday(inv.createdAt));
+
   const revenueToday = todayInvoices.reduce((sum, inv) => sum + inv.total, 0);
   const ordersToday = todayInvoices.length;
+  const revenueYesterday = yesterdayInvoices.reduce((sum, inv) => sum + inv.total, 0);
+  const ordersYesterday = yesterdayInvoices.length;
+  const aovToday = ordersToday > 0 ? revenueToday / ordersToday : 0;
+  const aovYesterday = ordersYesterday > 0 ? revenueYesterday / ordersYesterday : 0;
 
   const buckets: Record<TimeBucket, number> = {
     Morning: 0,
@@ -230,6 +298,13 @@ export function computeDashboardFromInvoices(invoices: Invoice[]) {
   for (const inv of todayInvoices) {
     buckets[timeBucket(inv.createdAt)] += 1;
   }
+
+  const peakBucket =
+    BUCKET_ORDER.reduce<TimeBucket | null>((best, bucket) => {
+      if (buckets[bucket] === 0) return best;
+      if (!best || buckets[bucket] > buckets[best]) return bucket;
+      return best;
+    }, null) ?? null;
 
   const itemCounts = new Map<string, { name: string; quantity: number }>();
   for (const inv of invoices) {
@@ -247,5 +322,71 @@ export function computeDashboardFromInvoices(invoices: Invoice[]) {
     .sort((a, b) => b.quantity - a.quantity)
     .slice(0, 6);
 
-  return { revenueToday, ordersToday, buckets, topItems };
+  const dailyTrend: RevenueTrendPoint[] = [];
+  for (let i = 6; i >= 0; i -= 1) {
+    const d = new Date(now);
+    d.setDate(d.getDate() - i);
+    const key = dayKey(d);
+    const dayInvoices = invoices.filter((inv) => dayKey(new Date(inv.createdAt)) === key);
+    const value = dayInvoices.reduce((sum, inv) => sum + inv.total, 0);
+    dailyTrend.push({
+      label: i === 0 ? 'Today' : d.toLocaleDateString([], { weekday: 'short' }),
+      sublabel: d.toLocaleDateString([], { month: 'short', day: 'numeric' }),
+      value,
+    });
+  }
+
+  const weeklyTrend: RevenueTrendPoint[] = [];
+  for (let i = 3; i >= 0; i -= 1) {
+    const weekStart = startOfWeek(now);
+    weekStart.setDate(weekStart.getDate() - i * 7);
+    const wKey = weekKey(weekStart);
+    const weekEnd = new Date(weekStart);
+    weekEnd.setDate(weekEnd.getDate() + 6);
+    const weekInvoices = invoices.filter((inv) => weekKey(new Date(inv.createdAt)) === wKey);
+    const value = weekInvoices.reduce((sum, inv) => sum + inv.total, 0);
+    weeklyTrend.push({
+      label: i === 0 ? 'This wk' : `Wk −${i}`,
+      sublabel: `${weekStart.toLocaleDateString([], { month: 'short', day: 'numeric' })} – ${weekEnd.toLocaleDateString([], { month: 'short', day: 'numeric' })}`,
+      value,
+    });
+  }
+
+  const insights: string[] = [];
+  if (ordersToday === 0) {
+    insights.push('No served orders yet today — revenue will appear once orders are completed and invoiced.');
+  } else {
+    insights.push(
+      `Today's revenue is ${formatCurrency(revenueToday)} across ${ordersToday} served order${ordersToday === 1 ? '' : 's'}.`,
+    );
+    if (peakBucket) {
+      insights.push(`${peakBucket} is your busiest period today with ${buckets[peakBucket]} order${buckets[peakBucket] === 1 ? '' : 's'}.`);
+    }
+    if (topItems[0]) {
+      insights.push(`${topItems[0].name} is your top seller (${topItems[0].quantity} units served all-time).`);
+    }
+    if (aovToday > 0) {
+      insights.push(`Average order value today is ${formatCurrency(aovToday)}.`);
+    }
+  }
+
+  return {
+    revenueToday,
+    ordersToday,
+    aovToday,
+    revenueYesterday,
+    ordersYesterday,
+    aovYesterday,
+    buckets,
+    topItems,
+    dailyTrend,
+    weeklyTrend,
+    insights,
+    peakBucket,
+  };
+}
+
+export function percentChange(current: number, previous: number): number | null {
+  if (previous === 0) return current > 0 ? 100 : null;
+  return ((current - previous) / previous) * 100;
 }
